@@ -24,7 +24,6 @@
       (dispatch [_ tag payload]
         (let [tags (tree-seq @wait-fors (comp reverse @wait-fors) tag)]
           (doseq [t (rseq (vec tags))]
-            (println t (get @callbacks t) payload)
             (put! chan [(get @callbacks t) payload]))
           (go-loop [[callback payload :as v] (<! chan)]
             (when v
