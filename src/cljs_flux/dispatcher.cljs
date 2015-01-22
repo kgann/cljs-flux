@@ -23,8 +23,8 @@
         (swap! wait-fors dissoc tag))
       (dispatch [_ tag payload]
         (let [tags (tree-seq @wait-fors (comp reverse @wait-fors) tag)]
-          (doseq [t (rseq (vec tags))]
-            (put! chan [(get @callbacks t) payload]))
+          (doseq [t (rseq (vec tags)) :let [cb (get @callbacks t)] :when cb]
+            (put! chan [cb payload]))
           (go-loop [[callback payload :as v] (<! chan)]
             (when v
               (callback payload)
