@@ -1,46 +1,59 @@
 # cljs-flux
 
-FIXME: Write a one-line description of your library/project.
+**Experimental** ClojureScript implementation of [Facebook's Flux architecture](https://facebook.github.io/flux/)
+
+[Github facebook/flux](https://github.com/facebook/flux)
 
 ## Overview
 
-FIXME: Write a paragraph about the library/project and highlight its goals.
+ClojureScript experiment surrounding Facebook's Flux architecture. Currently, Facebook only provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
 
-## Setup
+## Usage
 
-First-time Clojurescript developers, add the following to your bash .profile:
+Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js)
 
-    export LEIN_FAST_TRAMPOLINE=y
-    alias cljsbuild="lein trampoline cljsbuild $@"
+```clojure
+(require '[cljs-flux.dispatcher :refer :all])
 
-To avoid compiling ClojureScript for each build, AOT Clojurescript locally in your project with the following:
+(def flights (dispatcher))
+(def store (atom {}))
 
-    ./scripts/compile_cljsc
+;; register callback with ID :state
+(register flights :state
+          (fn [{:keys [state]}]
+            (when state
+              (swap! store assoc :state state))))
 
-Subsequent dev builds can use:
+;; register callback with ID :city
+;; waits for :state
+(register flights :city [:state]
+          (fn [{:keys [city]}]
+            (when city
+              (swap! store
+                     assoc
+                     :city city
+                     :city-state (str city ", " (:state @store))))))
 
-    lein cljsbuild auto dev
+;; register callback with ID :price
+;; waits for :city which will wait for :state
+(register flights :price [:city]
+          (fn [{:keys [price]}]
+            (when price
+              (swap! store
+                     assoc
+                     :price price
+                     :desc (str "For $" price " you can fly to "
+                                 (:city-state @store))))))
 
-To start a Node REPL (requires rlwrap):
+(dispatch flights :price {:price 100 :city "Atlanta" :state "GA"})
 
-    ./scripts/repl
-
-To get source map support in the Node REPL:
-
-    lein npm install
-
-Clean project specific out:
-
-    lein clean
-     
-Optimized builds:
-
-    lein cljsbuild once release     
-
-For more info on Cljs compilation, read [Waitin'](http://swannodette.github.io/2014/12/22/waitin/).
+(assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
+(assert (= "Atlanta, GA" (:city-state @store)))
+(assert (= 100 (:price @store)))
+```
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2015 Kyle Gann
 
-Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.
+Distributed under the Eclipse Public License, the same as Clojure.
