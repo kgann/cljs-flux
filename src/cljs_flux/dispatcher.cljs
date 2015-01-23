@@ -14,16 +14,24 @@
                     (apply conj coll (tree-seq m m k))))
                 [] (keys m))))
 
+(defn- spawn-dispatch-handler
+  "Spawn an infinite go block to handle all dispatched actions on chan"
+  [chan]
+  (go-loop [[callback payload] (<! chan)]
+    (callback payload)
+    (recur (<! chan))))
+
 (defprotocol IDispatcher
-  (^:export dispatch [this payload])
-  (^:export unregister [this id])
-  (^:export register [this callback] [this wait-for callback]))
+  (dispatch [this payload])
+  (unregister [this id])
+  (register [this callback] [this wait-for callback]))
 
 (defn dispatcher []
   (let [chan (chan)
         callbacks (atom {})
         wait-fors (atom {})
         dispatch-token (atom 0)]
+    (spawn-dispatch-handler chan)
     (reify IDispatcher
       (register [this f]
         (register this [] f))
@@ -37,11 +45,7 @@
         (swap! wait-fors dissoc id))
       (dispatch [_ payload]
         (doseq [id (dep-order @wait-fors) :let [cb (get @callbacks id)] :when cb]
-          (put! chan [cb payload]))
-        (go-loop [[callback payload :as v] (<! chan)]
-          (when v
-            (callback payload)
-            (recur (<! chan))))))))
+          (put! chan [cb payload]))))))
 
 (comment
   (def flights (dispatcher))
