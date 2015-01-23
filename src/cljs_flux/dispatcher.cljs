@@ -4,18 +4,9 @@
 
 (defn- dep-order
   "Given a map of `id -> dependent ids'
-  returns list of ids in dependency order.
-
-  (def m {7 [6] 6 [] 5 [3 4] 3 [1] 4 [2 3] 1 [] 2 []})
-  (dep-order m) => (1 3 2 4 5 6 7)"
+  returns list of ids in dependency order."
   [m]
-  (-> (reduce (fn [coll k]
-                (if (some #{k} coll)
-                  coll
-                  (apply conj coll (tree-seq m m k))))
-              [] (keys m))
-      (rseq)
-      (distinct)))
+  (distinct (mapcat #(reverse (tree-seq m m %)) (keys m))))
 
 (defn- spawn-dispatch-handler
   "Spawn an infinite go block to handle all dispatched actions on chan"
@@ -85,8 +76,13 @@
                        :desc (str "For $" price " you can fly to " (:city-state @store))))))
 
   (try
-    (register flights [4] identity)
-    (catch js/Error e e))
+    (register flights [999] identity)
+    (catch js/Error e
+      (assert (= (.-message e)
+                 "Cannot wait for unregistered dispatch token: 999"))))
+
+  (assert (= (dep-order {7 [6] 6 [] 5 [3 4] 3 [1] 4 [2 3] 1 [] 2 []})
+             '(6 7 1 3 2 4 5)))
 
   (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
   (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
