@@ -8,8 +8,6 @@
 
 ClojureScript experiment surrounding Facebook's Flux architecture. Currently, Facebook only provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
 
-## Usage
-
 Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js):
 
 >  Dispatcher is used to broadcast payloads to registered callbacks. This is
@@ -20,6 +18,8 @@ different from generic pub-sub systems in two ways:
       been executed.
 
 **Note** #2 is not completely satisfied. Callbacks can be deferred **only in whole**.
+
+## Usage
 
 ```clojure
 (require '[cljs-flux.dispatcher :refer :all])
