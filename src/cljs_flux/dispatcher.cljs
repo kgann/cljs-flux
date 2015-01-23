@@ -39,6 +39,8 @@
       (register [this f]
         (register this [] f))
       (register [_ wait-for f]
+        (when-let [token (first (remove @callbacks wait-for))]
+          (throw (js/Error. (str "Cannot wait for unregistered dispatch token: " token))))
         (let [id (swap! dispatch-token inc)]
           (swap! callbacks assoc id f)
           (swap! wait-fors assoc id wait-for)
@@ -81,6 +83,10 @@
                        assoc
                        :price price
                        :desc (str "For $" price " you can fly to " (:city-state @store))))))
+
+  (try
+    (register flights [4] identity)
+    (catch js/Error e e))
 
   (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
   (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
