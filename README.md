@@ -18,25 +18,27 @@ Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispat
 (def flights (dispatcher))
 (def store (atom {}))
 
-;; register callback with ID :state
-(register flights :state
-          (fn [{:keys [state]}]
-            (when state
-              (swap! store assoc :state state))))
+;; register callback and store dispatch token
+(def state-dispatch
+  (register flights
+            (fn [{:keys [state]}]
+              (when state
+                (swap! store assoc :state state)))))
 
-;; register callback with ID :city
-;; waits for :state
-(register flights :city [:state]
-          (fn [{:keys [city]}]
-            (when city
-              (swap! store
-                     assoc
-                     :city city
-                     :city-state (str city ", " (:state @store))))))
+;; register callback and store dispatch token
+;; waits for `state-dispatch'
+(def city-dispatch
+  (register flights [state-dispatch]
+            (fn [{:keys [city]}]
+              (when city
+                (swap! store
+                       assoc
+                       :city city
+                       :city-state (str city ", " (:state @store)))))))
 
-;; register callback with ID :price
-;; waits for :city which will wait for :state
-(register flights :price [:city]
+;; register callback ignoring dispatch token
+;; waits for `city-dispatch' which will wait for `state-dispatch'
+(register flights [city-dispatch]
           (fn [{:keys [price]}]
             (when price
               (swap! store
@@ -45,7 +47,7 @@ Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispat
                      :desc (str "For $" price " you can fly to "
                                  (:city-state @store))))))
 
-(dispatch flights :price {:price 100 :city "Atlanta" :state "GA"})
+(dispatch flights {:price 100 :city "Atlanta" :state "GA"})
 
 (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
 (assert (= "Atlanta, GA" (:city-state @store)))
