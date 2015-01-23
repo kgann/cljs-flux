@@ -3,16 +3,19 @@
   (:require-macros [cljs.core.async.macros :as asyncm :refer [go-loop]]))
 
 (defn- dep-order
-  "Takes a map of id -> ids and returns ids in dependency order
+  "Given a map of `id -> dependent ids'
+  returns list of ids in dependency order.
 
-  (def m {7 [6] 6 [] 5 [3 4] 3 [1] 4 [2] 1 [] 2 []})
-  (dependency-order m) => (2 4 1 3 5 6 7)"
+  (def m {7 [6] 6 [] 5 [3 4] 3 [1] 4 [2 3] 1 [] 2 []})
+  (dep-order m) => (1 3 2 4 5 6 7)"
   [m]
-  (rseq (reduce (fn [coll k]
-                  (if (some #{k} coll)
-                    coll
-                    (apply conj coll (tree-seq m m k))))
-                [] (keys m))))
+  (-> (reduce (fn [coll k]
+                (if (some #{k} coll)
+                  coll
+                  (apply conj coll (tree-seq m m k))))
+              [] (keys m))
+      (rseq)
+      (distinct)))
 
 (defn- spawn-dispatch-handler
   "Spawn an infinite go block to handle all dispatched actions on chan"
@@ -80,9 +83,12 @@
                        :desc (str "For $" price " you can fly to " (:city-state @store))))))
 
   (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
-
   (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
-  (assert (= "Atlanta, GA" (:city-state @store)))
-  (assert (= 100 (:price @store)))
+
+  (unregister flights state-dispatch)
+
+  (dispatch flights {:city "Athens" :state "XXXX"})
+  (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
+  (assert (= "Athens, GA" (:city-state @store)))
 
   )

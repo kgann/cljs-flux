@@ -10,7 +10,16 @@ ClojureScript experiment surrounding Facebook's Flux architecture. Currently, Fa
 
 ## Usage
 
-Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js)
+Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js):
+
+>  Dispatcher is used to broadcast payloads to registered callbacks. This is
+different from generic pub-sub systems in two ways:
+*   1) Callbacks are not subscribed to particular events. Every payload is
+      dispatched to every registered callback.
+*   2) Callbacks can be deferred in whole or part until other callbacks have
+      been executed.
+
+**Note** #2 is not completely satisfied. Callbacks can be deferred **only in whole**.
 
 ```clojure
 (require '[cljs-flux.dispatcher :refer :all])
@@ -48,10 +57,13 @@ Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispat
                                  (:city-state @store))))))
 
 (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
-
 (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
-(assert (= "Atlanta, GA" (:city-state @store)))
-(assert (= 100 (:price @store)))
+
+(unregister flights state-dispatch)
+
+(dispatch flights {:city "Athens" :state "XXXX"})
+(assert (= "GA" (:state @store)))
+(assert (= "Athens, GA" (:city-state @store)))
 ```
 
 ## License
