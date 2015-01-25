@@ -1,6 +1,6 @@
 # cljs-flux
 
-**Experimental** ClojureScript implementation of [Facebook's Flux architecture](https://facebook.github.io/flux/)
+ClojureScript implementation of [Facebook's Flux architecture](https://facebook.github.io/flux/)
 
 [Github facebook/flux](https://github.com/facebook/flux)
 
