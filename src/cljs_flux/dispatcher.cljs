@@ -1,96 +1,60 @@
-(ns cljs-flux.dispatcher
-  (:require [cljs.core.async :as async :refer [chan put! <!]])
-  (:require-macros [cljs.core.async.macros :as asyncm :refer [go-loop]]))
+(ns cljs-flux.dispatcher)
 
-(defn- dep-order
-  "Given a map of `id -> dependent ids'
-  returns list of ids in dependency order."
-  [m]
-  (distinct (mapcat #(reverse (tree-seq m m %)) (keys m))))
-
-(defn- spawn-dispatch-handler
-  "Spawn an infinite go block to handle all dispatched actions on chan"
-  [chan]
-  (go-loop [[callback payload] (<! chan)]
-    (callback payload)
-    (recur (<! chan))))
+(def ^:private prefix "ID_")
 
 (defprotocol IDispatcher
-  (dispatch [this payload])
+  (register [this callback])
   (unregister [this id])
-  (register [this callback] [this wait-for callback]))
+  (dispatch [this payload])
+  (wait-for [this ids])
+  (invoke-callback [this id]))
 
 (defn dispatcher []
-  (let [chan (chan)
-        callbacks (atom {})
-        wait-fors (atom {})
-        dispatch-token (atom 0)]
-    (spawn-dispatch-handler chan)
+  (let [registered (atom {})
+        dispatching? (atom false)
+        pending-payload (atom nil)
+        token (atom 0)]
     (reify IDispatcher
-      (register [this f]
-        (register this [] f))
-      (register [_ wait-for f]
-        (when-let [token (first (remove @callbacks wait-for))]
-          (throw (js/Error. (str "Cannot wait for unregistered dispatch token: " token))))
-        (let [id (swap! dispatch-token inc)]
-          (swap! callbacks assoc id f)
-          (swap! wait-fors assoc id wait-for)
+      (register [_ f]
+        (let [id (str prefix (swap! token inc))]
+          (swap! registered assoc-in [id :callback] f)
           id))
+
       (unregister [_ id]
-        (swap! callbacks dissoc id)
-        (swap! wait-fors dissoc id))
-      (dispatch [_ payload]
-        (doseq [id (dep-order @wait-fors) :let [cb (get @callbacks id)] :when cb]
-          (put! chan [cb payload]))))))
+        (swap! registered dissoc id))
 
-(comment
-  (def flights (dispatcher))
-  (def store (atom {}))
+      (invoke-callback [_ id]
+        (let [callback (get-in @registered [id :callback])]
+          (swap! registered assoc-in [id :pending?] true)
+          (callback @pending-payload)
+          (swap! registered assoc-in [id :handled?] true)))
 
-  ;; register callback and store dispatch token
-  (def state-dispatch
-    (register flights
-              (fn [{:keys [state]}]
-                (when state
-                  (swap! store assoc :state state)))))
+      (wait-for [this ids]
+        (when-not @dispatching?
+          (throw (js/Error. "wait-for must be invoked while dispatching.")))
+        (doseq [id ids
+                :let [{:keys [pending? handled? callback]} (@registered id)]
+                :when (not handled?)]
+          (cond
+            (and pending? (not handled?))
+            (throw (js/Error. (str "Circular dependency detected while waiting for `" id "'.")))
 
-  ;; register callback and store dispatch token
-  ;; waits for `state-dispatch'
-  (def city-dispatch
-    (register flights [state-dispatch]
-              (fn [{:keys [city]}]
-                (when city
-                  (swap! store
-                         assoc
-                         :city city
-                         :city-state (str city ", " (:state @store)))))))
+            (some? callback)
+            (invoke-callback this id)
 
-  ;; register callback ignoring dispatch token
-  ;; waits for `city-dispatch' which will wait for `state-dispatch'
-  (register flights [city-dispatch]
-            (fn [{:keys [price]}]
-              (when price
-                (swap! store
-                       assoc
-                       :price price
-                       :desc (str "For $" price " you can fly to " (:city-state @store))))))
+            :else
+            (throw (js/Error. (str "`" id "' does not map to a registered callback."))))))
 
-  (try
-    (register flights [999] identity)
-    (catch js/Error e
-      (assert (= (.-message e)
-                 "Cannot wait for unregistered dispatch token: 999"))))
-
-  (assert (= (dep-order {7 [6] 6 [] 5 [3 4] 3 [1] 4 [2 3] 1 [] 2 []})
-             '(6 7 1 3 2 4 5)))
-
-  (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
-  (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
-
-  (unregister flights state-dispatch)
-
-  (dispatch flights {:city "Athens" :state "XXXX"})
-  (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
-  (assert (= "Athens, GA" (:city-state @store)))
-
-  )
+      (dispatch [this payload]
+        (let [ids (keys @registered)]
+          (reset! pending-payload payload)
+          (reset! dispatching? true)
+          (doseq [id ids]
+            (swap! registered assoc-in [id :pending?] false)
+            (swap! registered assoc-in [id :handled?] false))
+          (try
+            (doseq [id ids]
+              (invoke-callback this id))
+            (finally
+              (reset! dispatching? false)
+              (reset! pending-payload nil))))))))

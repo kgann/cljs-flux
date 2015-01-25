@@ -6,7 +6,7 @@
 
 ## Overview
 
-ClojureScript experiment surrounding Facebook's Flux architecture. Currently, Facebook only provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
+Currently, Facebook provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
 
 Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js):
 
@@ -16,8 +16,6 @@ different from generic pub-sub systems in two ways:
       dispatched to every registered callback.
 *   2) Callbacks can be deferred in whole or part until other callbacks have
       been executed.
-
-**Note** #2 is not completely satisfied. Callbacks can be deferred **only in whole**.
 
 ## Usage
 
@@ -35,35 +33,37 @@ different from generic pub-sub systems in two ways:
                 (swap! store assoc :state state)))))
 
 ;; register callback and store dispatch token
-;; waits for `state-dispatch'
+;; will wait for `state-dispatch'
 (def city-dispatch
-  (register flights [state-dispatch]
+  (register flights
             (fn [{:keys [city]}]
               (when city
+                (wait-for flights [state-dispatch])
                 (swap! store
                        assoc
                        :city city
                        :city-state (str city ", " (:state @store)))))))
 
 ;; register callback ignoring dispatch token
-;; waits for `city-dispatch' which will wait for `state-dispatch'
-(register flights [city-dispatch]
-          (fn [{:keys [price]}]
-            (when price
-              (swap! store
-                     assoc
-                     :price price
-                     :desc (str "For $" price " you can fly to "
-                                 (:city-state @store))))))
+;; will wait for `city-dispatch' which will wait for `state-dispatch'
+(def price-dispatch
+  (register flights
+            (fn [{:keys [price]}]
+              (when price
+                (wait-for flights [city-dispatch])
+                (swap! store
+                       assoc
+                       :price price
+                       :desc (str "For $" price " you can fly to " (:city-state @store)))))))
 
 (dispatch flights {:price 100 :city "Atlanta" :state "GA"})
 (assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
 
-(unregister flights state-dispatch)
+(unregister flights price-dispatch)
 
-(dispatch flights {:city "Athens" :state "XXXX"})
-(assert (= "GA" (:state @store)))
-(assert (= "Athens, GA" (:city-state @store)))
+(dispatch flights {:city "Athens" :state "OH" :price "FREE"})
+(assert (= "For $100 you can fly to Atlanta, GA" (:desc @store)))
+(assert (= "Athens, OH" (:city-state @store)))
 ```
 
 ## License
