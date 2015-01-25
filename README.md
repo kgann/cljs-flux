@@ -4,6 +4,12 @@ ClojureScript implementation of [Facebook's Flux architecture](https://facebook.
 
 [Github facebook/flux](https://github.com/facebook/flux)
 
+## Installation
+
+Add the following dependency to your `project.clj` file for the latest release:
+
+    [cljs-flux "0.1.0"]
+
 ## Overview
 
 Currently, Facebook provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
@@ -44,7 +50,7 @@ different from generic pub-sub systems in two ways:
                        :city city
                        :city-state (str city ", " (:state @store)))))))
 
-;; register callback ignoring dispatch token
+;; register callback and store dispatch token
 ;; will wait for `city-dispatch' which will wait for `state-dispatch'
 (def price-dispatch
   (register flights
