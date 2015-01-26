@@ -53,14 +53,14 @@
       (dispatch [this payload]
         (when @dispatching?
           (throw (js/Error. "Cannot dispatch in the middle of a dispatch.")))
-        (let [ids (keys @registered)]
+        (let [ids (sort (keys @registered))]
           (reset! pending-payload payload)
           (reset! dispatching? true)
           (doseq [id ids]
             (swap! registered assoc-in [id :pending?] false)
             (swap! registered assoc-in [id :handled?] false))
           (try
-            (doseq [id ids]
+            (doseq [id ids :when (not (get-in @registered [id :pending?]))]
               (invoke-callback id))
             (finally
               (reset! dispatching? false)

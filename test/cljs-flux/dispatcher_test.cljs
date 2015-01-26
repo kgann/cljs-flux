@@ -25,11 +25,15 @@
 (deftest callback-deferment
   (let [d (dispatcher)
         store (atom "")
-        foo (register d (fn [_] (swap! store str "foo")))
-        bar (register d (fn [_] (wait-for d [foo]) (swap! store str "bar")))]
+        foo-count (atom 0)
+        bar-count (atom 0)
+        foo (register d (fn [_] (swap! store str "foo") (swap! foo-count inc)))
+        bar (register d (fn [_] (wait-for d [foo]) (swap! store str "bar") (swap! bar-count inc)))]
     (testing "wait-for"
       (dispatch d {})
-      (is (= "foobar" @store)))
+      (is (= "foobar" @store))
+      (is (= 1 @foo-count))
+      (is (= 1 @bar-count)))
     (testing "wait-for outside of callback"
       (is (thrown-with-msg? js/Error #"while dispatching" (wait-for d [999]))))
     (testing "wait-for invalid token"
