@@ -8,7 +8,7 @@ ClojureScript implementation of [Facebook's Flux architecture](https://facebook.
 
 Add the following dependency to your `project.clj` file for the latest release:
 
-    [cljs-flux "0.1.0"]
+    [cljs-flux "0.1.1"]
 
 ## Overview
 
