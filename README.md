@@ -12,9 +12,7 @@ Add the following dependency to your `project.clj` file for the latest release:
 
 ## Overview
 
-Currently, Facebook provides an implementation for `Dispatcher.js`. This repo contains a similar implementation.
-
-Refer to [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js):
+Currently, Facebook provides an implementation for [Dispatcher.js](https://github.com/facebook/flux/blob/master/src/Dispatcher.js). This repo contains a similar implementation.
 
 >  Dispatcher is used to broadcast payloads to registered callbacks. This is
 different from generic pub-sub systems in two ways:
