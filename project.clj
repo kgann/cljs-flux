@@ -1,4 +1,4 @@
-(defproject cljs-flux "0.1.1"
+(defproject cljs-flux "0.1.2"
   :description "ClojureScript implementation of Facebook's Flux architecture"
   :url "https://github.com/kgann/cljs-flux"
   :license {:name "Eclipse Public License"
